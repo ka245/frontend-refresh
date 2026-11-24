@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDebounce } from "../hooks/useDebounce";
 
 type User = {
   id: number;
@@ -6,18 +7,24 @@ type User = {
   email: string;
 };
 
-function UsersDirectory() {
+function UserSearch() {
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const debouncedSearch = useDebounce(search, 500);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function getUsers() {
-      const url = "https://jsonplaceholder.typicode.com/users";
+      const url = `https://jsonplaceholder.typicode.com/users?name_like=${encodeURIComponent(debouncedSearch)}`;
       setLoading(true);
+      setError(null);
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const result = await response.json();
           setUsers(result);
@@ -25,16 +32,24 @@ function UsersDirectory() {
           throw new Error("Failed to fetch users");
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
+
         setError(
           error instanceof Error ? error.message : "Something went wrong",
         );
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     getUsers();
-  }, []);
+
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedSearch]);
 
   const filteredUsers = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
@@ -78,4 +93,4 @@ function UsersDirectory() {
   );
 }
 
-export default UsersDirectory;
+export default UserSearch;

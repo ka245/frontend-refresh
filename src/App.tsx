@@ -1,11 +1,11 @@
 import TodoList from "./components/todoList";
-import UsersDirectory from "./components/usersDirectory";
+import UserSearch from "./components/userSearch";
 
 function App() {
   return (
     <div>
       <TodoList />
-      <UsersDirectory />
+      <UserSearch />
     </div>
   );
 }
