@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
-
-type User = {
-  id: number;
-  name: string;
-  email: string;
-};
+import { User } from "../types/User";
+import UserItem from "./userItem";
 
 function UserSearch() {
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [favouriteIds, setFavouriteIds] = useState<number[]>([]);
+  const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   useEffect(() => {
@@ -54,14 +52,25 @@ function UserSearch() {
   const filteredUsers = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
 
-    if (!searchValue) {
-      return users;
-    }
+    return users.filter((user) => {
+      const matchesSearch = user.name.toLowerCase().includes(searchValue);
 
-    return users.filter((user) =>
-      user.name.toLowerCase().includes(searchValue),
-    );
-  }, [users, search]);
+      const matchesFavourite =
+        !showFavouritesOnly || favouriteIds.includes(user.id);
+
+      return matchesSearch && matchesFavourite;
+    });
+  }, [users, search, showFavouritesOnly, favouriteIds]);
+
+  const toggleFavourite = useCallback((id: number) => {
+    setFavouriteIds((prevIds) => {
+      if (prevIds.includes(id)) {
+        return prevIds.filter((favouriteId) => favouriteId !== id);
+      } else {
+        return [...prevIds, id];
+      }
+    });
+  }, []);
 
   return (
     <div>
@@ -74,6 +83,16 @@ function UserSearch() {
         onChange={(e) => setSearch(e.target.value)}
       />
 
+      <label>
+        Show favourites only{" "}
+        <input
+          type="checkbox"
+          name="showFavourites"
+          checked={showFavouritesOnly}
+          onChange={(e) => setShowFavouritesOnly(e.target.checked!)}
+        />
+      </label>
+
       {loading ? (
         <p>Loading...</p>
       ) : error ? (
@@ -81,13 +100,16 @@ function UserSearch() {
       ) : filteredUsers.length === 0 ? (
         <p>No users found</p>
       ) : (
-        <ul>
+        <div>
           {filteredUsers.map((user) => (
-            <li key={user.id}>
-              {user.name} - {user.email}
-            </li>
+            <UserItem
+              key={user.id}
+              user={user}
+              isFavourite={favouriteIds.includes(user.id)}
+              onToggleFavourite={toggleFavourite}
+            />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
